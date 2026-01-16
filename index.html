@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Campus Navigation</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="header">
+    <h2>🏫 Campus Navigation System</h2>
+  </header>
+
+  <div class="app-layout">
+    <button id="togglePanelBtn" onclick="toggleSidebar()">☰ Controls</button>
+    <!-- LEFT PANEL -->
+    <aside class="sidebar">
+
+      <h3>Floors</h3>
+      <div class="map-buttons">
+        <button onclick="loadMap('College(1).svg')">College</button>
+        <button onclick="loadMap('MainFloor.svg')">Main Floor</button>
+        <button onclick="loadMap('FirstFloor.svg')">First Floor</button>
+      </div>
+
+      <h3>Search</h3>
+      <input id="searchInput" type="text" placeholder="Search room">
+      <button onclick="searchPlace()">Search</button>
+
+      <h3>Navigation</h3>
+      <input id="startInput" type="text" placeholder="Start location">
+      <input id="endInput" type="text" placeholder="Destination">
+      <button onclick="navigate()">Navigate</button>
+
+      <h3>Zoom</h3>
+      <div class="zoom-buttons">
+        <button onclick="zoom(1)">➕ Zoom In</button>
+        <button onclick="zoom(-1)">➖ Zoom Out</button>
+      </div>
+
+    </aside>
+
+    <!-- RIGHT MAP -->
+    <main id="mapContainer" class="map-container"></main>
+
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
+
