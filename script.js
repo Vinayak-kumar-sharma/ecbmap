@@ -3,6 +3,7 @@
 let svg = null;     // active svg reference
 let currentMarkers = [];
 let currentRoutePath = null;
+let ROOM_LIST = [];
 
 let viewBox = { x: 0, y: 0, w: 1200, h: 800 };
 let isPanning = false;
@@ -26,8 +27,54 @@ async function loadMap(file) {
 
   setupViewBox();
   hideAllHelpers();
+  generateRoomListFromSVG();
   clearNavigation();
   bindPanZoom();
+}
+
+function generateRoomListFromSVG() {
+  if (!svg) return;
+
+  const rooms = [...svg.querySelectorAll(".room")];
+
+  ROOM_LIST = rooms.map(r => ({
+    id: r.id,
+    name: r.id.replace(/[_-]/g, " ")
+  }));
+
+  console.log("Rooms detected:", ROOM_LIST);
+}
+
+function setupAutocomplete(inputId) {
+  const input = document.getElementById(inputId);
+  const box = input.nextElementSibling;
+
+  input.addEventListener("input", () => {
+    const val = input.value.trim().toLowerCase();
+    box.innerHTML = "";
+    if (!val) return;
+
+    const matches = ROOM_LIST.filter(r =>
+      r.name.toLowerCase().includes(val)
+    ).slice(0, 6);
+
+    matches.forEach(room => {
+      const div = document.createElement("div");
+      div.className = "suggestion";
+      div.textContent = room.name;
+
+      div.onclick = () => {
+        input.value = room.name;
+        box.innerHTML = "";
+      };
+
+      box.appendChild(div);
+    });
+  });
+
+  document.addEventListener("click", e => {
+    if (!input.contains(e.target)) box.innerHTML = "";
+  });
 }
 
 /**************** HELPERS ****************/
@@ -310,8 +357,14 @@ function zoom(dir) {
 
 /**************** AUTO LOAD FIRST MAP ****************/
 
-loadMap("College(1).svg");   // change filename if needed
+// loadMap("College(1).svg");   
+window.onload = () => {
+  loadMap("College(1).svg");   // your SVG file
 
+  setupAutocomplete("searchInput");
+  setupAutocomplete("startInput");
+  setupAutocomplete("endInput");
+};
 
 
 // new
@@ -435,51 +488,7 @@ function centerOnRoom(room) {
   animateViewBox(target);
 }
 
-// let lastTap = 0;
 
-// function handleDoubleTap(e) {
-//   const currentTime = new Date().getTime();
-//   const tapLength = currentTime - lastTap;
-
-//   if (tapLength < 300 && tapLength > 0) {
-//     // Double tap detected
-//     zoom(1); // zoom in
-//   }
-
-//   lastTap = currentTime;
-// }
-
-// // Bind double-tap
-// svg.addEventListener("touchend", handleDoubleTap);
-
-// let initialDistance = 0;
-
-// function getDistance(touches) {
-//   const dx = touches[0].clientX - touches[1].clientX;
-//   const dy = touches[0].clientY - touches[1].clientY;
-//   return Math.sqrt(dx*dx + dy*dy);
-// }
-
-// // Pinch start
-// svg.addEventListener("touchstart", e => {
-//   if (e.touches.length === 2) {
-//     initialDistance = getDistance(e.touches);
-//   }
-// });
-
-// // Pinch move
-// svg.addEventListener("touchmove", e => {
-//   if (e.touches.length === 2 && initialDistance > 0) {
-//     const newDistance = getDistance(e.touches);
-//     const scale = newDistance / initialDistance;
-
-//     if (scale > 1.05) zoom(1);    // pinch out → zoom in
-//     else if (scale < 0.95) zoom(-1); // pinch in → zoom out
-
-//     initialDistance = newDistance; // update for next move
-//     e.preventDefault(); // prevent page scroll
-//   }
-// });
 
 // ----------------------
 // Mobile Gesture Variables
@@ -560,3 +569,4 @@ function bindMobileGestures() {
 // Call this function **after loading your SVG**
 // Example:
 bindMobileGestures();
+
