@@ -591,6 +591,10 @@ window.onload = () => {
   setupAutocomplete("searchInput");
   setupAutocomplete("startInput");
   setupAutocomplete("endInput");
+  // Mobile
+  setupAutocomplete("mobileSearchInput");
+  setupAutocomplete("mobileStartInput");
+  setupAutocomplete("mobileEndInput");
 };
 
 window.addEventListener("DOMContentLoaded", () => {
