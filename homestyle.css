@@ -526,17 +526,70 @@ body {
   color: #4b5563;
 }
 
-/* ========================= */
-/* COORDINATOR */
-/* ========================= */
-.about-coordinator {
-  display: flex;
-  justify-content: center;
+/* ================= SECTION ================= */
+.about-guidance {
+  margin-top: 60px;
+  text-align: center;
 }
 
-.about-coordinator .team-card {
-  max-width: 320px;
-  width: 100%;
+/* TITLE */
+.section-title {
+  font-size: 28px;
+  font-weight: 800;
+  margin-bottom: 30px;
+
+  background: linear-gradient(90deg, #6366f1, #9333ea);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* GRID */
+.guidance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 320px));
+  justify-content: center; /* 🔥 center cards */
+  gap: 30px;
+}
+
+/* CARD SPECIAL STYLE */
+.about-guidance .team-card {
+  border: 2px solid #f59e0b;
+  background: rgba(245,158,11,0.08);
+
+  transition: 0.3s ease;
+}
+
+.about-guidance .team-card:hover {
+  transform: translateY(-10px) scale(1.03);
+
+  box-shadow: 
+    0 20px 50px rgba(0,0,0,0.15),
+    0 0 0 2px rgba(245,158,11,0.3);
+}
+
+/* IMAGE */
+.about-guidance .team-img {
+  border-color: #f59e0b;
+}
+
+/* ROLE COLOR */
+.about-guidance .role {
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+/* ================= RESPONSIVE ================= */
+@media (max-width: 600px) {
+
+  .section-title {
+    font-size: 22px;
+  }
+
+  .guidance-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
 }
 
 /* ========================= */

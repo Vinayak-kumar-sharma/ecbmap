@@ -11,7 +11,7 @@ let startViewBox = { x: 0, y: 0 };
 let lastTap = 0;
 let initialPinchDistance = 0;
 
-let tooltipEl = null;
+// let tooltipEl = null;
 let movingDot = null;
 
 
@@ -256,7 +256,7 @@ function fitRouteToView(nodePath) {
   routeWidth = maxX - minX;
   routeHeight = maxY - minY;
 
-  // 🔥 maintain SVG aspect ratio (1200:800 = 1.5)
+
   const svgRatio = 1200 / 800;
   const routeRatio = routeWidth / routeHeight;
 
@@ -379,23 +379,23 @@ function animateDotToRoom(room) {
   requestAnimationFrame(animate);
 }
 /**************** SEARCH ****************/
-function showTooltip(room, text) {
-  if (tooltipEl) tooltipEl.remove();
+// function showTooltip(room, text) {
+//   if (tooltipEl) tooltipEl.remove();
 
-  const container = document.getElementById("mapContainer");
+//   const container = document.getElementById("mapContainer");
 
-  const roomBox = room.getBoundingClientRect();
-  const containerBox = container.getBoundingClientRect();
+//   const roomBox = room.getBoundingClientRect();
+//   const containerBox = container.getBoundingClientRect();
 
-  tooltipEl = document.createElement("div");
-  tooltipEl.className = "map-tooltip";
-  tooltipEl.innerText = text;
+//   tooltipEl = document.createElement("div");
+//   tooltipEl.className = "map-tooltip";
+//   tooltipEl.innerText = text;
 
-  tooltipEl.style.left = (roomBox.left - containerBox.left + roomBox.width / 2) + "px";
-  tooltipEl.style.top = (roomBox.top - containerBox.top) + "px";
+//   tooltipEl.style.left = (roomBox.left - containerBox.left + roomBox.width / 2) + "px";
+//   tooltipEl.style.top = (roomBox.top - containerBox.top) + "px";
 
-  container.appendChild(tooltipEl);
-}
+//   container.appendChild(tooltipEl);
+// }
 
 function searchPlace() {
   if (!svg) return alert("Map not loaded");
@@ -418,11 +418,10 @@ function searchPlace() {
   // 🧭 zoom + center
   centerOnRoom(room);
 
-  // 📍 tooltip
-  showTooltip(room, room.id.replace(/[_-]/g, " "));
+  // // 📍 tooltip
+  // showTooltip(room, room.id.replace(/[_-]/g, " "));
 }
 
-/**************** VIEWBOX ****************/
 
 function setupViewBox() {
   viewBox = { x: 0, y: 0, w: 1200, h: 800 };
@@ -470,13 +469,47 @@ window.addEventListener("load", adjustPadding);
 window.addEventListener("resize", adjustPadding);
 /**************** PAN + ZOOM ****************/
 
+// function bindPanZoom() {
+
+//   svg.onmousedown = startPan;
+//   svg.onmousemove = movePan;
+//   svg.onmouseup = endPan;
+//   svg.onmouseleave = endPan;
+
+//   svg.addEventListener("wheel", (e) => {
+//     e.preventDefault();
+
+//     const rect = svg.getBoundingClientRect();
+
+//     const cx = viewBox.x + (e.clientX - rect.left) / rect.width * viewBox.w;
+//     const cy = viewBox.y + (e.clientY - rect.top) / rect.height * viewBox.h;
+
+//     zoom(e.deltaY < 0 ? 1 : -1, cx, cy);
+//   });
+// }
 function bindPanZoom() {
 
+  // 🖥️ PC EVENTS
   svg.onmousedown = startPan;
   svg.onmousemove = movePan;
   svg.onmouseup = endPan;
   svg.onmouseleave = endPan;
 
+  // 📱 MOBILE TOUCH EVENTS
+  svg.addEventListener("touchstart", (e) => {
+    const touch = e.touches[0];
+    startPan({ clientX: touch.clientX, clientY: touch.clientY });
+  });
+
+  svg.addEventListener("touchmove", (e) => {
+    e.preventDefault(); // 🔥 VERY IMPORTANT (prevents page scroll)
+    const touch = e.touches[0];
+    movePan({ clientX: touch.clientX, clientY: touch.clientY });
+  });
+
+  svg.addEventListener("touchend", endPan);
+
+  // 🖱️ WHEEL ZOOM (PC)
   svg.addEventListener("wheel", (e) => {
     e.preventDefault();
 
