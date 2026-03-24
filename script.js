@@ -1,6 +1,4 @@
-/**************** GLOBALS ****************/
-
-let svg = null;     // active svg reference
+let svg = null;
 let currentMarkers = [];
 let currentRoutePath = null;
 let ROOM_LIST = [];
@@ -10,14 +8,18 @@ let isPanning = false;
 let startPoint = { x: 0, y: 0 };
 let startViewBox = { x: 0, y: 0 };
 
-/**************** LOAD MAP ****************/
+let lastTap = 0;
+let initialPinchDistance = 0;
+
+let tooltipEl = null;
+let movingDot = null;
+
 
 async function loadMap(file) {
   const res = await fetch(file);
   const text = await res.text();
 
-  document.getElementById("mapContainer").innerHTML = text;
-
+  document.querySelector(".map-wrapper").innerHTML = text;
   svg = document.getElementById("svgRoot");
 
   if (!svg) {
@@ -26,11 +28,15 @@ async function loadMap(file) {
   }
 
   setupViewBox();
-  hideAllHelpers();
+  hideAllHelpers(); 
   generateRoomListFromSVG();
   clearNavigation();
+
   bindPanZoom();
+  bindMobileGestures();
 }
+
+/**************** ROOM LIST ****************/
 
 function generateRoomListFromSVG() {
   if (!svg) return;
@@ -41,9 +47,10 @@ function generateRoomListFromSVG() {
     id: r.id,
     name: r.id.replace(/[_-]/g, " ")
   }));
-
-  console.log("Rooms detected:", ROOM_LIST);
 }
+
+
+/**************** AUTOCOMPLETE ****************/
 
 function setupAutocomplete(inputId) {
   const input = document.getElementById(inputId);
@@ -83,22 +90,17 @@ function normalize(t) {
   return t.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
-/**************** HIDE CONNECTORS ****************/
-
 function hideAllHelpers() {
   if (!svg) return;
 
-  // hide connectors
   svg.querySelectorAll('[id^="connector-"]').forEach(el => {
     el.style.display = "none";
   });
 
-  // hide nodes
   svg.querySelectorAll('[id^="node-"]').forEach(el => {
     el.style.display = "none";
   });
 }
-
 
 /**************** CLEAR ****************/
 
@@ -190,13 +192,9 @@ function drawRoutePath(nodePath) {
   path.setAttribute("class", "route-path");
 
   svg.appendChild(path);
-
-  const length = path.getTotalLength();
-  path.style.strokeDasharray = length;
-  path.style.strokeDashoffset = length;
   path.getBoundingClientRect();
   path.style.transition = "stroke-dashoffset 1s ease-out";
-  path.style.strokeDashoffset = "0";
+
 
   currentRoutePath = path;
 }
@@ -230,7 +228,63 @@ function markRoom(room, color) {
 }
 
 /**************** NAVIGATE ****************/
+function fitRouteToView(nodePath) {
+  if (!svg || nodePath.length < 2) return;
 
+  const points = nodePath.map(id => getNodePoint(id)).filter(Boolean);
+  if (points.length < 2) return;
+
+  const xs = points.map(p => p.x);
+  const ys = points.map(p => p.y);
+
+  let minX = Math.min(...xs);
+  let maxX = Math.max(...xs);
+  let minY = Math.min(...ys);
+  let maxY = Math.max(...ys);
+
+  let routeWidth = maxX - minX;
+  let routeHeight = maxY - minY;
+
+  // 🔥 padding (important for zoom-out feel)
+  const padding = Math.max(routeWidth, routeHeight) * 0.5;
+
+  minX -= padding;
+  minY -= padding;
+  maxX += padding;
+  maxY += padding;
+
+  routeWidth = maxX - minX;
+  routeHeight = maxY - minY;
+
+  // 🔥 maintain SVG aspect ratio (1200:800 = 1.5)
+  const svgRatio = 1200 / 800;
+  const routeRatio = routeWidth / routeHeight;
+
+  if (routeRatio > svgRatio) {
+    const newH = routeWidth / svgRatio;
+    const diff = newH - routeHeight;
+    minY -= diff / 2;
+    routeHeight = newH;
+  } else {
+    const newW = routeHeight * svgRatio;
+    const diff = newW - routeWidth;
+    minX -= diff / 2;
+    routeWidth = newW;
+  }
+
+  // ✅ APPLY DIRECTLY (same system as centerOnRoom)
+  viewBox = {
+    x: minX,
+    y: minY,
+    w: routeWidth,
+    h: routeHeight
+  };
+
+  svg.setAttribute(
+    "viewBox",
+    `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`
+  );
+}
 function navigate() {
   if (!svg) return alert("Map not loaded");
 
@@ -251,9 +305,6 @@ function navigate() {
 
   if (!startNode || !endNode) return alert("Room not linked to node");
 
-  startRoom.classList.add("start-room");
-  endRoom.classList.add("end-room");
-
   markRoom(startRoom, "#22c55e");
   markRoom(endRoom, "#ef4444");
 
@@ -263,16 +314,88 @@ function navigate() {
   if (!path) return alert("No path found");
 
   drawRoutePath(path);
-
-  fitRouteToView(path); // expeiement
-
-  if (window.innerWidth <= 768) {
-  toggleSidebar(true);
+  fitRouteToView(path);
 }
 
+function centerOnRoom(room) {
+  if (!svg || !room) return;
+
+  const p = getNodePoint(room.dataset.node || room.id);
+  if (!p) return;
+
+  // 🔥 Use SAME logic as your working version
+  const scaleFactor = window.innerWidth < 780 ? 2 : 1.5;
+
+  const newW = 1200 / scaleFactor;   // 🔥 fixed base size
+  const newH = 800 / scaleFactor;
+
+  viewBox = {
+    x: p.x - newW / 2,
+    y: p.y - newH / 2,
+    w: newW,
+    h: newH
+  };
+
+  svg.setAttribute(
+    "viewBox",
+    `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`
+  );
 }
 
+function animateDotToRoom(room) {
+  if (!svg) return;
+
+  if (movingDot) movingDot.remove();
+
+  const box = room.getBBox();
+  const targetX = box.x + box.width / 2;
+  const targetY = box.y + box.height / 2;
+
+  // start from center of current view
+  const startX = viewBox.x + viewBox.w / 2;
+  const startY = viewBox.y + viewBox.h / 2;
+
+  movingDot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  movingDot.setAttribute("r", 6);
+  movingDot.setAttribute("class", "moving-dot");
+
+  svg.appendChild(movingDot);
+
+  const duration = 800;
+  const startTime = performance.now();
+
+  function animate(now) {
+    const t = Math.min((now - startTime) / duration, 1);
+
+    const x = startX + (targetX - startX) * t;
+    const y = startY + (targetY - startY) * t;
+
+    movingDot.setAttribute("cx", x);
+    movingDot.setAttribute("cy", y);
+
+    if (t < 1) requestAnimationFrame(animate);
+  }
+
+  requestAnimationFrame(animate);
+}
 /**************** SEARCH ****************/
+function showTooltip(room, text) {
+  if (tooltipEl) tooltipEl.remove();
+
+  const container = document.getElementById("mapContainer");
+
+  const roomBox = room.getBoundingClientRect();
+  const containerBox = container.getBoundingClientRect();
+
+  tooltipEl = document.createElement("div");
+  tooltipEl.className = "map-tooltip";
+  tooltipEl.innerText = text;
+
+  tooltipEl.style.left = (roomBox.left - containerBox.left + roomBox.width / 2) + "px";
+  tooltipEl.style.top = (roomBox.top - containerBox.top) + "px";
+
+  container.appendChild(tooltipEl);
+}
 
 function searchPlace() {
   if (!svg) return alert("Map not loaded");
@@ -286,15 +409,17 @@ function searchPlace() {
   if (!room) return alert("Place not found");
 
   room.classList.add("highlight-room");
+
   markRoom(room, "#ef4444");
-  
+
+  // 🔵 moving dot
+  animateDotToRoom(room);
+
+  // 🧭 zoom + center
   centerOnRoom(room);
 
-
-  if (window.innerWidth <= 768) {
-  toggleSidebar(true);
-}
-
+  // 📍 tooltip
+  showTooltip(room, room.id.replace(/[_-]/g, " "));
 }
 
 /**************** VIEWBOX ****************/
@@ -302,45 +427,89 @@ function searchPlace() {
 function setupViewBox() {
   viewBox = { x: 0, y: 0, w: 1200, h: 800 };
   svg.setAttribute("viewBox", "0 0 1200 800");
+
+  // Get original SVG viewBox
+  const vb = svg.getAttribute("viewBox");
+
+  if (vb) {
+    const [x, y, w, h] = vb.split(" ").map(Number);
+    MAP_WIDTH = w;
+    MAP_HEIGHT = h;
+    viewBox = { x, y, w, h };
+  } else {
+    MAP_WIDTH = 1200;
+    MAP_HEIGHT = 800;
+    viewBox = { x: 0, y: 0, w: 1200, h: 800 };
+    svg.setAttribute("viewBox", "0 0 1200 800");
+  }
+
+  // ✅ Make map fill container + maintain aspect ratio
+  svg.setAttribute("preserveAspectRatio", "xMidYMid slice");
+  applyViewBox(); // update viewBox in SVG
+
 }
 
+function adjustPadding() {
+  const container = document.querySelector(".map-wrapper");
+  const screenRatio = window.innerWidth / window.innerHeight;
+  const mapRatio = MAP_WIDTH / MAP_HEIGHT;
+
+  if (screenRatio < mapRatio) {
+    // phone taller than map → add vertical padding
+    const extraSpace = (window.innerHeight - (window.innerWidth / mapRatio)) / 2;
+    container.style.paddingTop = `${extraSpace}px`;
+    container.style.paddingBottom = `${extraSpace}px`;
+  } else {
+    container.style.paddingTop = "8px";
+    container.style.paddingBottom = "8px";
+  }
+}
+
+// Call on load & resize
+window.addEventListener("load", adjustPadding);
+window.addEventListener("resize", adjustPadding);
 /**************** PAN + ZOOM ****************/
 
 function bindPanZoom() {
+
   svg.onmousedown = startPan;
   svg.onmousemove = movePan;
   svg.onmouseup = endPan;
   svg.onmouseleave = endPan;
 
-  svg.ontouchstart = startPan;
-  svg.ontouchmove = movePan;
-  svg.ontouchend = endPan;
-}
+  svg.addEventListener("wheel", (e) => {
+    e.preventDefault();
 
-function getPoint(evt) {
-  return evt.touches ? evt.touches[0] : evt;
+    const rect = svg.getBoundingClientRect();
+
+    const cx = viewBox.x + (e.clientX - rect.left) / rect.width * viewBox.w;
+    const cy = viewBox.y + (e.clientY - rect.top) / rect.height * viewBox.h;
+
+    zoom(e.deltaY < 0 ? 1 : -1, cx, cy);
+  });
 }
 
 function startPan(e) {
   isPanning = true;
-  const p = getPoint(e);
-  startPoint = { x: p.clientX, y: p.clientY };
-  startViewBox = { x: viewBox.x, y: viewBox.y };
+  startPoint = { x: e.clientX, y: e.clientY };
+  startViewBox = { ...viewBox };
 }
 
 function movePan(e) {
   if (!isPanning) return;
 
-  const p = getPoint(e);
-  const dx = (startPoint.x - p.clientX) * (viewBox.w / svg.clientWidth);
-  const dy = (startPoint.y - p.clientY) * (viewBox.h / svg.clientHeight);
+  const dx = (startPoint.x - e.clientX) * (viewBox.w / svg.clientWidth);
+  const dy = (startPoint.y - e.clientY) * (viewBox.h / svg.clientHeight);
 
+  // ✅ UPDATE REAL STATE (this was missing)
   viewBox.x = startViewBox.x + dx;
   viewBox.y = startViewBox.y + dy;
 
-  svg.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
+  svg.setAttribute(
+    "viewBox",
+    `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`
+  );
 }
-
 function endPan() {
   isPanning = false;
 }
@@ -349,224 +518,87 @@ function zoom(dir) {
   if (!svg) return;
 
   const factor = dir > 0 ? 0.85 : 1.15;
+
   viewBox.w *= factor;
   viewBox.h *= factor;
 
-  svg.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
+  svg.setAttribute(
+    "viewBox",
+    `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`
+  );
 }
 
-/**************** AUTO LOAD FIRST MAP ****************/
+function clampViewBox() {
+  // prevent showing outside map
 
-// loadMap("College(1).svg");   
+  if (viewBox.w > MAP_WIDTH) {
+    viewBox.x = (MAP_WIDTH - viewBox.w) / 2;
+  } else {
+    viewBox.x = Math.max(0, Math.min(viewBox.x, MAP_WIDTH - viewBox.w));
+  }
+
+  if (viewBox.h > MAP_HEIGHT) {
+    viewBox.y = (MAP_HEIGHT - viewBox.h) / 2;
+  } else {
+    viewBox.y = Math.max(0, Math.min(viewBox.y, MAP_HEIGHT - viewBox.h));
+  }
+}
+
+function applyViewBox() {
+  svg.setAttribute(
+    "viewBox",
+    `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`
+  );
+}
+/**************** INIT ****************/
+
 window.onload = () => {
-  loadMap("College(1).svg");   // your SVG file
+  loadMap("College(1).svg");
 
   setupAutocomplete("searchInput");
   setupAutocomplete("startInput");
   setupAutocomplete("endInput");
 };
 
+window.addEventListener("DOMContentLoaded", () => {
+  // Open specific drawer section
+  function openMobileNav(sectionId) {
+    const mobileNav = document.getElementById("mobileNav");
+    mobileNav.classList.add("open");
 
-// new
-
-function toggleSidebar(forceClose = false) {
-  const sidebar = document.querySelector(".sidebar");
-
-  if (forceClose) {
-    sidebar.classList.remove("open");
-    return;
+    // Show only the selected section
+    ["mobileSearchSection","mobileNavigateSection","mobileFloorSection"].forEach(id => {
+      document.getElementById(id).style.display = (id === sectionId) ? "block" : "none";
+    });
   }
 
-  sidebar.classList.toggle("open");
-}
-
-
-function fitRouteToView(nodePath) {
-  if (!svg || nodePath.length < 2) return;
-
-  const points = nodePath.map(id => getNodePoint(id)).filter(Boolean);
-  if (points.length < 2) return;
-
-  const xs = points.map(p => p.x);
-  const ys = points.map(p => p.y);
-
-  let minX = Math.min(...xs);
-  let maxX = Math.max(...xs);
-  let minY = Math.min(...ys);
-  let maxY = Math.max(...ys);
-
-  let routeWidth = maxX - minX;
-  let routeHeight = maxY - minY;
-
-  // Container dimensions
-  const container = document.getElementById("mapContainer");
-  const contW = container.clientWidth;
-  const contH = container.clientHeight;
-  const contRatio = contW / contH;
-
-  // Screen factor adjusts zoom out for smaller screens
-  const screenFactor = window.innerWidth < 780 ? 0.8 : 0.45;
-  const padding = Math.max(routeWidth, routeHeight) * screenFactor;
-
-  minX -= padding;
-  minY -= padding;
-  maxX += padding;
-  maxY += padding;
-
-  routeWidth = maxX - minX;
-  routeHeight = maxY - minY;
-
-  // Adjust aspect ratio to container
-  const routeRatio = routeWidth / routeHeight;
-  if (routeRatio > contRatio) {
-    const newH = routeWidth / contRatio;
-    const diff = newH - routeHeight;
-    minY -= diff / 2;
-    routeHeight = newH;
-  } else {
-    const newW = routeHeight * contRatio;
-    const diff = newW - routeWidth;
-    minX -= diff / 2;
-    routeWidth = newW;
+  // Close drawer
+  window.closeMobileNav = function() {
+    document.getElementById("mobileNav").classList.remove("open");
   }
 
-  animateViewBox({
-    x: minX,
-    y: minY,
-    w: routeWidth,
-    h: routeHeight
-  });
-}
+  // Hook mobile icons
+  document.getElementById("mobileSearch").onclick = () => openMobileNav("mobileSearchSection");
+  document.getElementById("mobileNavigate").onclick = () => openMobileNav("mobileNavigateSection");
+  document.getElementById("mobileFloor").onclick = () => openMobileNav("mobileFloorSection");
 
-
-
-function animateViewBox(target) {
-  const start = { ...viewBox };
-  const duration = 600;
-  const startTime = performance.now();
-
-  function frame(now) {
-    const t = Math.min((now - startTime) / duration, 1);
-
-    viewBox.x = start.x + (target.x - start.x) * t;
-    viewBox.y = start.y + (target.y - start.y) * t;
-    viewBox.w = start.w + (target.w - start.w) * t;
-    viewBox.h = start.h + (target.h - start.h) * t;
-
-    svg.setAttribute(
-      "viewBox",
-      `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`
-    );
-
-    if (t < 1) requestAnimationFrame(frame);
+  // Submit search
+  window.submitMobileSearch = function() {
+    const val = document.getElementById("mobileSearchInput").value.trim();
+    if (!val) return alert("Enter room name");
+    document.getElementById("searchInput").value = val;
+    searchPlace();
+    closeMobileNav(); // auto-close
   }
 
-  requestAnimationFrame(frame);
-}
-
-
-function centerOnRoom(room) {
-  if (!svg || !room) return;
-
-  const p = getNodePoint(room.dataset.node || room.id);
-  if (!p) return;
-
-  const container = document.getElementById("mapContainer");
-  const contW = container.clientWidth;
-  const contH = container.clientHeight;
-
-  // Smaller screens need more zoom-out
-  const scaleFactor = window.innerWidth < 780 ? 2 : 1.5;
-
-  const target = {
-    x: p.x - contW / 2 / scaleFactor,
-    y: p.y - contH / 2 / scaleFactor,
-    w: contW / scaleFactor,
-    h: contH / scaleFactor
-  };
-
-  animateViewBox(target);
-}
-
-
-
-// ----------------------
-// Mobile Gesture Variables
-// ----------------------
-let lastTap = 0;
-let initialPinchDistance = 0;
-
-// Helper: distance between two touches
-function getDistance(touches) {
-  const dx = touches[0].clientX - touches[1].clientX;
-  const dy = touches[0].clientY - touches[1].clientY;
-  return Math.sqrt(dx*dx + dy*dy);
-}
-
-// ----------------------
-// DOUBLE-TAP TO ZOOM
-// ----------------------
-function handleDoubleTap(e) {
-  const currentTime = new Date().getTime();
-  const tapLength = currentTime - lastTap;
-
-  if (tapLength < 300 && tapLength > 0) {
-    // Double tap detected → zoom in
-    zoom(1);
-    e.preventDefault();
+  // Submit navigation
+  window.submitMobileNavigate = function() {
+    const start = document.getElementById("mobileStartInput").value.trim();
+    const end = document.getElementById("mobileEndInput").value.trim();
+    if (!start || !end) return alert("Enter start & destination");
+    document.getElementById("startInput").value = start;
+    document.getElementById("endInput").value = end;
+    navigate();
+    closeMobileNav(); // auto-close
   }
-
-  lastTap = currentTime;
-}
-
-// ----------------------
-// PINCH-TO-ZOOM
-// ----------------------
-function handleTouchStart(e) {
-  if (e.touches.length === 2) {
-    initialPinchDistance = getDistance(e.touches);
-  } else if (e.touches.length === 1) {
-    // Single finger pan
-    startPan(e);
-  }
-}
-
-function handleTouchMove(e) {
-  if (e.touches.length === 2 && initialPinchDistance > 0) {
-    const newDistance = getDistance(e.touches);
-    const scale = newDistance / initialPinchDistance;
-
-    if (scale > 1.05) zoom(1);    // pinch out → zoom in
-    else if (scale < 0.95) zoom(-1); // pinch in → zoom out
-
-    initialPinchDistance = newDistance;
-    e.preventDefault(); // prevent scrolling
-  } else if (e.touches.length === 1) {
-    // Single finger pan
-    movePan(e);
-  }
-}
-
-function handleTouchEnd(e) {
-  if (e.touches.length < 2) {
-    initialPinchDistance = 0;
-  }
-  isPanning = false;
-}
-
-// ----------------------
-// BIND TO SVG
-// ----------------------
-function bindMobileGestures() {
-  if (!svg) return;
-
-  svg.addEventListener("touchstart", handleTouchStart, { passive: false });
-  svg.addEventListener("touchmove", handleTouchMove, { passive: false });
-  svg.addEventListener("touchend", handleTouchEnd, { passive: false });
-  svg.addEventListener("touchend", handleDoubleTap);
-}
-
-// Call this function **after loading your SVG**
-// Example:
-bindMobileGestures();
-
+});

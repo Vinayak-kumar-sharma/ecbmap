@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Campus Navigator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- HEADER -->
+<header class="header">
+  <div class="container header-container">
+
+    <!-- Logo + College Name -->
+    <div class="logo-section">
+      <a href="home.html"><img src="logo.png" alt="College Logo" class="logo"></a>
+        <span class="college-name">Campus Navigator</span>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+      <a href="home.html" >Home</a>
+      <a href="maps.html" class="active">Map</a>
+      <a href="aboutus.html">About</a>
+    </nav>
+
+    <!-- Google Maps Button -->
+    <a href="https://www.google.com/maps/place/Government+Engineering+College+Bikaner/@28.0599457,73.2921321,17z" 
+       target="_blank" 
+       class="map-btn">
+       Google Map
+    </a>
+
+  </div>
+</header>
+  <!-- APP LAYOUT: sidebar + map -->
+  <div class="app-layout">
+
+    <!-- DESKTOP SIDEBAR (hidden on mobile) -->
+    <aside class="sidebar">
+      <h3>Maps</h3>
+      <div class="map-buttons">
+        <button onclick="loadMap('College(1).svg')">Outdoor</button>
+        <button onclick="loadMap('MainFloor.svg')">Main Floor</button>
+        <button onclick="loadMap('FirstFloor.svg')">First Floor</button>
+      </div>
+
+      <h3>Search</h3>
+      <input id="searchInput" type="text" placeholder="Search room">
+      <div class="suggestions"></div>
+      <button onclick="searchPlace()">Search</button>
+
+      <h3>Navigation</h3>
+      <input id="startInput" type="text" placeholder="Start location">
+      <div class="suggestions"></div>
+      <input id="endInput" type="text" placeholder="Destination">
+      <div class="suggestions"></div>
+      <button onclick="navigate()">Navigate</button>
+    </aside>
+  <!-- MAP CONTAINER -->
+<div class="map-container" id="mapContainer">
+  <!-- Zoom controls on top-right -->
+  <div class="zoom-controls">
+    <button onclick="zoom(1)">+</button>
+    <button onclick="zoom(-1)">-</button>
+  </div>
+
+  <!-- Mobile icons, only for screens < 800px -->
+  <div class="mobile-icons">
+    <button id="mobileFloor">🗺️</button>
+    <button id="mobileSearch">🔍</button>
+    <button id="mobileNavigate">🧭</button>
+    
+  </div>
+
+  <!-- Hidden mobile drawer -->
+  <aside class="mobile-nav" id="mobileNav">
+    <!-- Close button -->
+    <button class="close-btn" onclick="closeMobileNav()">✖</button>
+
+    <!-- Mobile Search -->
+    <div class="drawer-section" id="mobileSearchSection">
+      <h3>Search Room</h3>
+      <input id="mobileSearchInput" type="text" placeholder="Room name">
+      <button onclick="submitMobileSearch()">Search</button>
+    </div>
+
+    <!-- Mobile Navigation -->
+    <div class="drawer-section" id="mobileNavigateSection">
+      <h3>Navigation</h3>
+      <input id="mobileStartInput" type="text" placeholder="Start location">
+      <input id="mobileEndInput" type="text" placeholder="Destination">
+      <button onclick="submitMobileNavigate()">Navigate</button>
+    </div>
+
+    <!-- Mobile Floors -->
+    <div class="drawer-section" id="mobileFloorSection">
+      <h3>Floors</h3>
+      <div class="mobile-maps">
+        <button onclick="loadMap('College(1).svg'); closeMobileNav();">College</button>
+        <button onclick="loadMap('MainFloor.svg'); closeMobileNav();">Main Floor</button>
+        <button onclick="loadMap('FirstFloor.svg'); closeMobileNav();">First Floor</button>
+      </div>
+      
+    </div>
+  </aside>
+
+  <!-- SVG wrapper -->
+  <div class="map-wrapper">
+    <!-- JS injects SVG here -->
+  </div>
+</div>
+
+  </div>
+<!-- CREATIVE FOOTER -->
+<!-- COMPACT FOOTER -->
+<footer class="compact-footer">
+  <p>
+    ⚡ Final Year CSE Project • Batch 2022 • 
+    Engineering College Bikaner, Rajasthan, India
+  </p>
+</footer>
+  <script src="script.js"></script>
+</body>
+</html>

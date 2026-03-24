@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Campus Navigation</title>
+  <link rel="stylesheet" href="homestyle.css">
+</head>
+<style>
+  /* ================= PRELOADER ================= */
+  #preloader {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    background: url('pattern.jpg') no-repeat center center;
+    background-size: cover;
+  }
+
+  #preloader::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-color: rgba(248, 250, 252, 0.75);
+    z-index: 0;
+  }
+
+  .preloader-logo {
+    width: 120px;
+    /* adjust size */
+    height: auto;
+    animation: pulseLogo 1.5s infinite;
+    z-index: 1;
+    /* above the overlay */
+  }
+
+  /* Pulse animation */
+  @keyframes pulseLogo {
+    0% {
+      transform: scale(1);
+      opacity: 0.7;
+    }
+
+    50% {
+      transform: scale(1.2);
+      opacity: 1;
+    }
+
+    100% {
+      transform: scale(1);
+      opacity: 0.7;
+    }
+  }
+</style>
+<!-- PRELOADER -->
+<div id="preloader">
+  <img src="logo.png" alt="College Logo" class="preloader-logo">
+</div>
+
+<script>
+  // Hide preloader after page loads with minimum delay
+  window.addEventListener('load', () => {
+    const preloader = document.getElementById('preloader');
+    const minDelay = 1500; // 1.5 seconds minimum
+
+    // Wait for either the page load or the minimum delay
+    setTimeout(() => {
+      preloader.style.opacity = '0';
+      preloader.style.transition = 'opacity 0.5s ease';
+      setTimeout(() => {
+        preloader.style.display = 'none';
+      }, 500); // wait for fade out
+    }, minDelay);
+  });
+</script>
+
+<body>
+  <header class="header">
+    <div class="container header-container">
+
+      <div class="logo-section">
+        <a href="home.html"><img src="logo.png" alt="College Logo" class="logo"></a>
+        <span class="college-name">Campus Navigator</span>
+      </div>
+
+      <nav class="navbar">
+        <a href="home.html" class="active">Home</a>
+        <a href="maps.html">Map</a>
+        <a href="aboutus.html">About</a>
+      </nav>
+
+    </div>
+  </header>
+  <section class="hero">
+    <div class="container hero-container">
+      <div class="hero-left">
+        <h1>SMART CAMPUS. ZERO CONFUSION.</h1>
+        <p>
+          Find any classroom, any floor —<br>
+          no confusion, no stress… just
+          <span class="highlight">smooth navigation</span>.
+        </p>
+
+        <div class="hero-buttons">
+          <a href="maps.html" class="btn-primary">Start Navigation</a>
+          <a href="aboutus.html" class="btn-secondary">Team</a>
+
+        </div>
+      </div>
+
+
+      <div class="hero-right">
+
+        <div class="map-card map-card-main">
+          <img src="collegeboundary.png" alt="Campus Outdoor Map">
+        </div>
+
+        <div class="map-card map-card-top">
+          <img src="firstfloor.png" alt="Ground Floor Map">
+        </div>
+
+        <div class="map-card map-card-bottom">
+          <img src="mainfloor.png" alt="First Floor Map">
+        </div>
+        <div class="network">
+          <!-- DOTS -->
+          <span class="dot d1"></span>
+          <span class="dot d2"></span>
+          <span class="dot d3"></span>
+          <span class="dot d4"></span>
+
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <footer class="creative-footer">
+    <div class="footer-content">
+
+      <h2 class="footer-quote">
+        “Born of code, shaped by minds, and destined to <span class="footer-highlight">guide every step across this
+          campus.</span>”
+      </h2>
+
+      <p class="footer-subtext">
+        A final-year innovation transforming how you explore your campus.
+      </p>
+
+      <div class="footer-line"></div>
+
+      <p class="footer-credit">
+        ⚡ Final Year CSE Project • Batch 2022
+        <br>
+        Built from scratch. Built to last.
+      </p>
+
+    </div>
+  </footer>
+
+
+</body>
+
+</html>
